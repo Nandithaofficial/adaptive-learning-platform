@@ -1,5 +1,6 @@
+localStorage.setItem("studentName", name);
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 const API_URL = "http://localhost:5001/api/auth";
 
@@ -9,6 +10,7 @@ function Signup() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -23,8 +25,14 @@ function Signup() {
     try {
       const res = await fetch(`${API_URL}/signup`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+        }),
       });
 
       const data = await res.json();
@@ -34,7 +42,12 @@ function Signup() {
         return;
       }
 
+      // Save login token
       localStorage.setItem("token", data.token);
+
+      // Save student name
+      localStorage.setItem("studentName", name);
+
       navigate("/dashboard");
     } catch (err) {
       setError("Something went wrong. Try again.");
@@ -45,7 +58,9 @@ function Signup() {
     <div className="auth-container">
       <form onSubmit={handleSubmit}>
         <h1>Sign Up</h1>
+
         {error && <p className="error">{error}</p>}
+
         <input
           type="text"
           placeholder="Full Name"
@@ -53,6 +68,7 @@ function Signup() {
           onChange={(e) => setName(e.target.value)}
           required
         />
+
         <input
           type="email"
           placeholder="Email"
@@ -60,6 +76,7 @@ function Signup() {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
+
         <input
           type="password"
           placeholder="Password"
@@ -67,6 +84,7 @@ function Signup() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
+
         <input
           type="password"
           placeholder="Confirm Password"
@@ -74,9 +92,16 @@ function Signup() {
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
         />
-        <button type="submit">Sign Up</button>
+
+        <button type="submit">
+          Sign Up
+        </button>
+
         <p>
-          Already have an account? <a href="/">Log in</a>
+          Already have an account?{" "}
+          <Link to="/">
+            Log in
+          </Link>
         </p>
       </form>
     </div>
