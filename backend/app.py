@@ -69,6 +69,38 @@ def api_progress(learner_id):
     return jsonify(db.get_all_progress_for_learner(learner_id)), 200
 
 
+@app.route("/api/status/<learner_id>/<topic_id>", methods=["GET"])
+def api_status(learner_id, topic_id):
+    """
+    Read-only: re-analyzes a learner's EXISTING history for one topic and
+    returns the current decision. Does NOT require a new attempt and does
+    NOT change any stored data. Use this to show "current status" without
+    the learner having just submitted a quiz.
+    """
+    try:
+        result = coach.get_status(learner_id, topic_id)
+        return jsonify(result), 200
+    except ValidationError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/dashboard/<learner_id>", methods=["GET"])
+def api_dashboard(learner_id):
+    """
+    Full dashboard view for a learner: overall progress %, completed
+    topics, hours studied, per-topic status (reinforce/advance/mentor),
+    and recent activity. Call this the moment a learner logs in and
+    lands on their dashboard — learner_id is their email address.
+    """
+    try:
+        result = coach.get_dashboard(learner_id)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/decisions", methods=["GET"])
 def api_decisions_all():
     return jsonify(db.get_decision_history()), 200
