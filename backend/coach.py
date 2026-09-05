@@ -81,6 +81,91 @@ def run(learner_id: str, topic_id: str, new_attempt: dict) -> dict:
     }
 
 
+def get_status(learner_id: str, topic_id: str) -> dict:
+    """
+    Read-only version of run() — re-analyzes a learner's EXISTING attempt
+    history for one topic and returns the current decision, WITHOUT adding
+    a new attempt or incrementing reinforcement_count.
+
+    This is what the dashboard should call the moment a learner logs in:
+    it answers "based on everything we already know about this learner,
+    what's their current status?" — no new quiz submission required.
+    """
+    validate_ids(learner_id, topic_id)
+    progress = db.get_progress(learner_id, topic_id)
+
+    if not progress["attempts"]:
+        # Learner hasn't attempted this topic yet — nothing to analyze.
+        return {
+            "learner_id": learner_id,
+            "topic_id": topic_id,
+            "decision": None,
+            "reason_code": "no_attempts_yet",
+            "reasoning": "This learner has not attempted this topic yet.",
+            "analyzed_report": None,
+            "updated_progress": progress,
+        }
+
+    report = analyzer_agent.analyze_learner(progress)
+    decision, reason_code = decision_agent.decide(report)
+    template_reason = decision_agent.render_reason(reason_code, report)
+    reasoning = reasoning_agent.explain(
+        decision, reason_code, report, fallback_text=template_reason
+    )
+
+    return {
+        "learner_id": learner_id,
+        "topic_id": topic_id,
+        "decision": decision,
+        "reason_code": reason_code,
+        "reasoning": reasoning,
+        "analyzed_report": report,
+        "updated_progress": progress,
+    }
+
+
+def get_dashboard(learner_id: str) -> dict:
+    """
+    Aggregates status across every topic a learner has touched, for a
+    dashboard/overview screen (e.g. on login). Returns per-topic status
+    plus summary stats: overall progress %, completed topic count,
+    total time studied, and recent decision history.
+    """
+    all_progress = db.get_all_progress_for_learner(learner_id)
+
+    topics_status = []
+    total_time_sec = 0
+    completed_count = 0
+
+    for progress in all_progress:
+        topic_id = progress["topic_id"]
+        status = get_status(learner_id, topic_id)
+        topics_status.append(status)
+
+        for attempt in progress["attempts"]:
+            total_time_sec += attempt.get("time_spent_sec", 0)
+
+        if progress.get("mastery_status") == "mastered":
+            completed_count += 1
+
+    total_topics = len(all_progress)
+    overall_progress_pct = (
+        round((completed_count / total_topics) * 100) if total_topics else 0
+    )
+
+    recent_activity = db.get_decision_history(learner_id)[-10:]  # last 10, most recent last
+
+    return {
+        "learner_id": learner_id,
+        "overall_progress_pct": overall_progress_pct,
+        "completed_topics": completed_count,
+        "total_topics": total_topics,
+        "hours_studied": round(total_time_sec / 3600, 1),
+        "topics": topics_status,
+        "recent_activity": list(reversed(recent_activity)),  # most recent first
+    }
+
+
 if __name__ == "__main__":
     db.init_db()
     print("Coach pipeline loaded. Run demo.py for a full walkthrough.")
