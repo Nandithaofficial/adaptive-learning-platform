@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# Database (don't commit local dev DB — everyone should generate their own via demo.py)
+*.db
+*.sqlite3
+
+# Environment variables / secrets
+.env
+.env.local
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (if frontend is added later)
+node_modules/
+dist/
+build/
