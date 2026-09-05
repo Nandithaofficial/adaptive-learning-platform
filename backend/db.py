@@ -1,9 +1,10 @@
 """
-db.py — Persistence layer for learner progress records.
+db.py — Persistence layer for learner progress records and decision history.
 
-Uses SQLite so the hackathon demo has real persistence without needing
-a server. Progress is stored as JSON blobs keyed by (learner_id, topic_id)
-for simplicity — this is fine at hackathon scale and easy to inspect/debug.
+Uses SQLite so the hackathon demo has real persistence without needing a
+server. Progress is stored as JSON blobs keyed by (learner_id, topic_id) —
+fine at hackathon scale and easy to inspect/debug (open learning_coach.db
+in any SQLite viewer).
 """
 
 import sqlite3
@@ -36,6 +37,7 @@ def init_db():
             learner_id TEXT NOT NULL,
             topic_id TEXT NOT NULL,
             decision TEXT NOT NULL,
+            reason_code TEXT NOT NULL,
             reasoning TEXT NOT NULL,
             timestamp TEXT NOT NULL
         )
@@ -45,7 +47,7 @@ def init_db():
 
 
 def get_progress(learner_id: str, topic_id: str) -> dict:
-    """Fetch existing progress record, or create a fresh one if none exists."""
+    """Fetch existing progress record, or return a fresh blank one."""
     conn = get_connection()
     row = conn.execute(
         "SELECT data FROM progress WHERE learner_id = ? AND topic_id = ?",
@@ -83,14 +85,23 @@ def save_progress(progress: dict):
     conn.close()
 
 
-def log_decision(learner_id: str, topic_id: str, decision: str, reasoning: str):
+def get_all_progress_for_learner(learner_id: str) -> list:
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT data FROM progress WHERE learner_id = ?", (learner_id,)
+    ).fetchall()
+    conn.close()
+    return [json.loads(r["data"]) for r in rows]
+
+
+def log_decision(learner_id: str, topic_id: str, decision: str, reason_code: str, reasoning: str):
     conn = get_connection()
     conn.execute(
         """
-        INSERT INTO decisions_log (learner_id, topic_id, decision, reasoning, timestamp)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO decisions_log (learner_id, topic_id, decision, reason_code, reasoning, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
-        (learner_id, topic_id, decision, reasoning, datetime.now(timezone.utc).isoformat()),
+        (learner_id, topic_id, decision, reason_code, reasoning, datetime.now(timezone.utc).isoformat()),
     )
     conn.commit()
     conn.close()
